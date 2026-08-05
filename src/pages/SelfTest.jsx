@@ -1,11 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 function SelfTest() {
   const [step, setStep] = useState(0); // 0: choose test, 1: instructions, 2: result select
-  const [timerStarted, setTimerStarted] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(null); // null = not started
   const [result, setResult] = useState(null);
   const navigate = useNavigate();
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (secondsLeft === null) return;
+    if (secondsLeft <= 0) {
+      clearInterval(intervalRef.current);
+      return;
+    }
+    intervalRef.current = setInterval(() => {
+      setSecondsLeft((s) => s - 1);
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [secondsLeft]);
+
+  function startTimer() {
+    setSecondsLeft(15 * 60); // 15 minutes
+  }
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  }
+
+  const timerRunning = secondsLeft !== null && secondsLeft > 0;
+  const timerDone = secondsLeft === 0;
 
   const resultContent = {
     negative: {
@@ -34,8 +60,8 @@ function SelfTest() {
       {step === 0 && (
         <>
           <p className="heading" style={{ fontSize: "15px", margin: "0 0 12px" }}>Choose your test</p>
-          <div className="rbtn" onClick={() => setStep(1)} style={cardStyle}>🩸 HIV self-test kit</div>
-          <div className="rbtn" onClick={() => setStep(1)} style={cardStyle}>🧪 Syphilis test guidance</div>
+          <div style={cardStyle} onClick={() => setStep(1)}>🩸 HIV self-test kit</div>
+          <div style={cardStyle} onClick={() => setStep(1)}>🧪 Syphilis test guidance</div>
         </>
       )}
 
@@ -48,17 +74,38 @@ function SelfTest() {
             <p style={{ fontSize: "13px", margin: "0 0 8px" }}>3. Place the sample in the test device</p>
             <p style={{ fontSize: "13px", margin: 0 }}>4. Wait 15 minutes before reading</p>
           </div>
+
           <div style={{ textAlign: "center", marginBottom: "14px" }}>
-            <button className="btn-primary" onClick={() => setTimerStarted(true)}>
-              {timerStarted ? "Timer running" : "Start 15 minute timer"}
-            </button>
-            {timerStarted && (
-              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "8px 0 0" }}>
-                We will let you know when 15 minutes are up.
+            {secondsLeft === null && (
+              <button className="btn-primary" onClick={startTimer}>
+                Start 15 minute timer
+              </button>
+            )}
+            {timerRunning && (
+              <>
+                <p className="heading" style={{ fontSize: "24px", margin: "0 0 4px" }}>
+                  {formatTime(secondsLeft)}
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: 0 }}>
+                  Reading your result too early can give a false result
+                </p>
+              </>
+            )}
+            {timerDone && (
+              <p style={{ fontSize: "13px", color: "var(--color-secondary)", fontWeight: 500, margin: 0 }}>
+                ✓ Time's up — you can read your result now
               </p>
             )}
           </div>
-          <button className="btn-primary" onClick={() => setStep(2)}>Continue</button>
+
+          <button
+            className="btn-primary"
+            onClick={() => setStep(2)}
+            disabled={secondsLeft !== null && !timerDone}
+            style={{ opacity: secondsLeft !== null && !timerDone ? 0.5 : 1 }}
+          >
+            Continue
+          </button>
         </>
       )}
 
